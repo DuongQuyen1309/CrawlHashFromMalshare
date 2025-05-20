@@ -5,6 +5,7 @@ import (
 )
 
 func main() {
-	handler.CrawData()
-	//	handler.CallApi()
+	// ctx := context.Background()
+	// handler.CrawlData(ctx)
+	handler.CallApi()
 }

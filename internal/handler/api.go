@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -17,9 +18,6 @@ import (
 
 const (
 	DATE_PATTERN = "2006-01-02"
-	MD5_FILE     = "md5.txt"
-	SHA1_FILE    = "sha1.txt"
-	SHA256_FILE  = "sha256.txt"
 )
 
 var ctx = context.Background()
@@ -40,6 +38,10 @@ func CallApi() {
 }
 func DeleteById(c *gin.Context) {
 	id := c.Query("id")
+	if _, err := strconv.Atoi(id); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Not validated id"})
+		return
+	}
 	_, err := db.DB.NewUpdate().Set("is_delete = true").Model((*model.Example)(nil)).Where("id = ?", id).Exec(ctx)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Not found record"})

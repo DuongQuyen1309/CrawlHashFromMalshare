@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -9,6 +10,10 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"time"
+
+	"github.com/DuongQuyen1309/crawlhashfrommalshare/internal/db"
+	"github.com/DuongQuyen1309/crawlhashfrommalshare/internal/model"
 )
 
 var (
@@ -16,7 +21,15 @@ var (
 	reForTxt  = regexp.MustCompile(`href="(malshare_fileList.\d{4}-\d{2}-\d{2}.all.txt)"`)
 )
 
-func CrawData() {
+const (
+	PATTERN     = "2006-01-02"
+	MD5_FILE    = "md5.txt"
+	SHA1_FILE   = "sha1.txt"
+	SHA256_FILE = "sha256.txt"
+)
+
+func CrawlData(ctx context.Context) {
+
 	matches, errDates := GetDates(reForDate, "https://malshare.com/daily/")
 	if errDates != nil {
 		return
@@ -33,7 +46,7 @@ func CrawData() {
 		go func(d string) {
 			defer wg.Done()
 			defer func() { <-count }()
-			if ProcessADate(d) != nil {
+			if ProcessADate(d, ctx) != nil {
 				return
 			}
 		}(date)
@@ -41,7 +54,7 @@ func CrawData() {
 	wg.Wait()
 }
 
-func ProcessADate(a string) error {
+func ProcessADate(a string, ctx context.Context) error {
 	parts := strings.Split(a, "-")
 	dirPath := filepath.Join(parts[0], parts[1], parts[2])
 
@@ -63,10 +76,28 @@ func ProcessADate(a string) error {
 	lines := strings.Split(txtFileContent, "\n")
 	var md5List, sha1List, sha256List []string
 	ExtractHashesFromLines(lines, &md5List, &sha1List, &sha256List)
+	WriteToFiles(dirPath, md5List, sha1List, sha256List)
+	var md5Content, sha1Content, sha256Content string
+	md5Content, sha1Content, sha256Content, errReadFile := ReadFiles(dirPath, md5Content, sha1Content, sha256Content)
+	if errReadFile != nil {
+		return errReadFile
+	}
+	parsedDate, err := time.Parse(PATTERN, a)
+	if err != nil {
+		return err
+	}
+	errInsertDB := InsertDB(ctx, parsedDate, md5Content, sha1Content, sha256Content)
+	if errInsertDB != nil {
+		return errInsertDB
+	}
+	return nil
+}
+
+func WriteToFiles(dirPath string, md5List []string, sha1List []string, sha256List []string) error {
 	files := map[string][]string{
-		"md5.txt":    md5List,
-		"sha1.txt":   sha1List,
-		"sha256.txt": sha256List,
+		MD5_FILE:    md5List,
+		SHA1_FILE:   sha1List,
+		SHA256_FILE: sha256List,
 	}
 	for fileName, content := range files {
 		fullPath := filepath.Join(dirPath, fileName)
@@ -76,6 +107,62 @@ func ProcessADate(a string) error {
 		}
 	}
 	return nil
+}
+func WriteToFile(filePath string, data []string) error {
+	f, err := os.Create(filePath)
+	if err != nil {
+		fmt.Println("Failed to create file txt for md5 sha1, sha256:", err)
+		return err
+	}
+	defer f.Close()
+	for _, data := range data {
+		_, err := f.WriteString(data + "\n")
+		if err != nil {
+			fmt.Println("Failed to write file txt for md5 sha1, sha256:", err)
+			return err
+		}
+	}
+	return nil
+}
+func InsertDB(ctx context.Context, parsedDate time.Time, md5Content string, sha1Content string, sha256Content string) error {
+	var allRecords []model.Example
+	errRetrieveDB := db.DB.NewSelect().Model(&allRecords).Where("date = ?", parsedDate).Scan(ctx)
+	if errRetrieveDB != nil || len(allRecords) == 0 {
+		return errRetrieveDB
+	}
+	_, errInsertDB := db.DB.NewInsert().Model(&model.Example{
+		Date:   parsedDate,
+		Md5:    md5Content,
+		Sha1:   sha1Content,
+		Sha256: sha256Content,
+	}).Exec(ctx)
+	if errInsertDB != nil {
+		return errInsertDB
+	}
+	return nil
+}
+func ReadFiles(dirPath string, md5Content string, sha1Content string, sha256Content string) (string, string, string, error) {
+	Contents := map[string]string{
+		MD5_FILE:    md5Content,
+		SHA1_FILE:   sha1Content,
+		SHA256_FILE: sha256Content,
+	}
+	for fileName, _ := range Contents {
+		var err error
+		Contents[fileName], err = ReadFile(dirPath, fileName)
+		if err != nil {
+			return "", "", "", err
+		}
+	}
+	return Contents[MD5_FILE], Contents[SHA1_FILE], Contents[SHA256_FILE], nil
+}
+func ReadFile(dirPath string, file string) (string, error) {
+	resp, err := os.ReadFile(filepath.Join(dirPath, file))
+	if err != nil {
+		fmt.Printf("Failed to read file %s", file)
+		return "", err
+	}
+	return string(resp), nil
 }
 
 func GetDates(regexp *regexp.Regexp, path string) ([][]string, error) {
@@ -131,21 +218,4 @@ func GetURLContent(path string) (string, error) {
 		return "", err
 	}
 	return string(body), nil
-}
-
-func WriteToFile(filePath string, data []string) error {
-	f, err := os.Create(filePath)
-	if err != nil {
-		fmt.Println("Failed to create file txt for md5 sha1, sha256:", err)
-		return err
-	}
-	defer f.Close()
-	for _, data := range data {
-		_, err := f.WriteString(data + "\n")
-		if err != nil {
-			fmt.Println("Failed to write file txt for md5 sha1, sha256:", err)
-			return err
-		}
-	}
-	return nil
 }
