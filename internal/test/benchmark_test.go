@@ -1,4 +1,4 @@
-package handler
+package test
 
 import (
 	"net/http/httptest"
@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/DuongQuyen1309/crawlhashfrommalshare/internal/db"
+	"github.com/DuongQuyen1309/crawlhashfrommalshare/internal/handler"
 	"github.com/gin-gonic/gin"
 )
 
@@ -19,9 +20,8 @@ func BenchmarkSearchRecordByDate(b *testing.B) {
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
 		c.Request = req
-
 		start := time.Now()
-		SearchRecordByDate(c)
+		handler.SearchRecordByDate(c)
 		elapsed := time.Since(start)
 		totalTime += elapsed
 	}

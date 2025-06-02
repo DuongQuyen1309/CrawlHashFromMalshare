@@ -1,4 +1,4 @@
-package handler
+package service
 
 import (
 	"context"
@@ -29,7 +29,6 @@ const (
 )
 
 func CrawlData(ctx context.Context) {
-
 	matches, errDates := GetDates(reForDate, "https://malshare.com/daily/")
 	if errDates != nil {
 		return
