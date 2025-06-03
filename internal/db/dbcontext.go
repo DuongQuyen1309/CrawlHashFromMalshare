@@ -19,7 +19,6 @@ func ConnectDB() error {
 		fmt.Println("Failed to connect to database:", err)
 		return err
 	}
-	fmt.Println("Connected to database")
 	DB = bun.NewDB(pgdb, pgdialect.New())
 	DB.AddQueryHook(bundebug.NewQueryHook(bundebug.WithVerbose(true)))
 	return nil

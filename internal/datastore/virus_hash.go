@@ -39,23 +39,25 @@ func CreateVirusHashEntity() error {
 	return nil
 }
 
-func GetVirusHashByHash(record *model.VirusHash, hash string, c context.Context) error {
-	err := db.DB.NewSelect().Model(record).Where("hash = ?", hash).Scan(c)
+func GetVirusHashByHash(hash string, c context.Context) (model.VirusHash, error) {
+	var record model.VirusHash
+	err := db.DB.NewSelect().Model(&record).Where("hash = ?", hash).Scan(c)
 	if err != nil {
-		return err
+		return model.VirusHash{}, err
 	}
-	return nil
+	return record, nil
 }
-func GetVirusHashByDateAndCategory(records *[]model.VirusHash, date time.Time, category string, c context.Context) error {
-	_, err := db.DB.NewSelect().Model(records).
+func GetVirusHashByDateAndCategory(date time.Time, category string, c context.Context) ([]model.VirusHash, error) {
+	var records []model.VirusHash
+	_, err := db.DB.NewSelect().Model(&records).
 		Where("date::date = ? and category = ?", date, category).
-		Offset(1).
-		Limit(1).
+		Offset(0).
+		Limit(10).
 		Exec(c)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	return records, nil
 }
 func InsertVirusData(virusRecord *model.VirusHash, c context.Context) error {
 	_, err := db.DB.NewInsert().Model(virusRecord).Exec(context.Background())

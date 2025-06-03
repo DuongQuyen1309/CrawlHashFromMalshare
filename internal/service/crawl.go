@@ -28,10 +28,10 @@ const (
 	SHA256_FILE = "sha256.txt"
 )
 
-func CrawlData(ctx context.Context) {
+func CrawlData(ctx context.Context) error {
 	matches, errDates := GetDates(reForDate, "https://malshare.com/daily/")
 	if errDates != nil {
-		return
+		return errDates
 	}
 	count := make(chan bool, 100)
 	var wg sync.WaitGroup
@@ -46,11 +46,13 @@ func CrawlData(ctx context.Context) {
 			defer wg.Done()
 			defer func() { <-count }()
 			if ProcessADate(d, ctx) != nil {
+				fmt.Println("Failed to process date:", d)
 				return
 			}
 		}(date)
 	}
 	wg.Wait()
+	return nil
 }
 
 func ProcessADate(a string, ctx context.Context) error {

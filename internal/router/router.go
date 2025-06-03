@@ -8,10 +8,11 @@ import (
 func SetupRouter() *gin.Engine {
 	router := gin.Default()
 	router.DELETE("/records/:date", handler.DeleteRecordByDate)
-	// router.DELETE("records/:id", handler.DeleteById)
+	router.GET("/records", handler.GetAllRecords)
 	router.GET("/records/:date", handler.SearchRecordByDate)
-	router.GET("/virusHashs/:hash", handler.SearchSuspectVirusHashByHash)
-	router.GET("/records/:date/:category", handler.ParseHashByDateCategory)
+	router.GET("/records/:date/:category", handler.GetHashesByDateAndCategory)
+	// router.GET("/virusHashs/:hash", handler.SearchSuspectVirusHashByHash)
+	// router.GET("/records/:date/:category", handler.ParseHashByDateCategory)
 	router.Run(":8080")
 	return router
 }

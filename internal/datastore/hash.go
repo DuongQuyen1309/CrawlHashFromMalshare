@@ -48,19 +48,19 @@ func DeleteHashById(id int, c context.Context) error {
 	return nil
 }
 
-func GetHashByDate(date time.Time, record *model.Example, c context.Context) error {
-	err := db.DB.NewSelect().Model(record).
+func GetHashByDate(date time.Time, c context.Context) (model.Example, error) {
+	var record model.Example
+	err := db.DB.NewSelect().Model(&record).
 		Where("date = ? and is_delete is not true", date.Format(DATE_PATTERN)).
 		Scan(c)
 	if err != nil {
-		return err
+		return model.Example{}, err
 	}
-	return nil
+	return record, nil
 }
 func DeleteHashByDate(date time.Time, c context.Context) error {
 	_, err := db.DB.NewUpdate().Model((*model.Example)(nil)).
-		Where("date = ?", date.Format(DATE_PATTERN)).
-		Set("is_delete = true").Exec(c)
+		Where("date = ?", date.Format(DATE_PATTERN)).Set("is_delete = true").Exec(c)
 	if err != nil {
 		return err
 	}
@@ -75,4 +75,30 @@ func TakeRecordByAttribute(record *model.Example, date time.Time, c context.Cont
 	if err != nil {
 		fmt.Println("Error not found:", err)
 	}
+}
+
+func GetAllRecords(offset int, limit int, c context.Context) ([]model.Example, error) {
+	var records []model.Example
+	err := db.DB.NewSelect().Model(&records).Where("is_delete is not true").Offset(offset).Limit(limit).Scan(c)
+	if err != nil {
+		return nil, err
+	}
+	return records, nil
+}
+
+func DeleteRecord(date time.Time, c context.Context) error {
+	_, err := db.DB.NewUpdate().Model((*model.Example)(nil)).Where("date = ?", date.Format(DATE_PATTERN)).Set("is_delete = true").Exec(c)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func GetHashesByDateAndCategory(date time.Time, c context.Context) (model.Example, error) {
+	var record model.Example
+	err := db.DB.NewSelect().Model(&record).Where("date::date = ?", date.Format(DATE_PATTERN)).Scan(c)
+	if err != nil {
+		return model.Example{}, err
+	}
+	return record, nil
 }
